@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+    <PropertyGroup>
+        <TargetFramework>net5.0</TargetFramework>
+        <RootNamespace>Server</RootNamespace>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\Dto\Dto.csproj" />
+      <ProjectReference Include="..\NetMQ.Server\NetMQ.Server.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <PackageReference Include="Unity.Microsoft.DependencyInjection" Version="5.11.5" />
+    </ItemGroup>
+
+</Project>

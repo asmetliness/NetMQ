@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net5.0</TargetFramework>
+        <RootNamespace>Core</RootNamespace>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <PackageReference Include="DevTools.Transport.MessagePackExtensions" Version="2.3.55.15" />
+      <PackageReference Include="NetMQ" Version="4.0.1.7-pre" />
+    </ItemGroup>
+
+</Project>
