@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.Json;
 using System.Threading.Tasks;
 using Core;
 using DevTools.Hosting.Bootstrapper;
@@ -27,10 +28,24 @@ namespace Demo.Client
             var client = host.Services.GetService<IClient>();
 
 
-            var response =
-                await client.SendRequestAsync<RequestDto, ResponseDto>("Test", RequestDto.Create(),
-                    TimeSpan.FromSeconds(1));
 
+            for (int i = 0; i < 100; ++i)
+            {
+                try
+                {
+                    var response =
+                        await client.SendRequestAsync<RequestDto, ResponseDto>("Test", RequestDto.Create(),
+                            TimeSpan.FromSeconds(1));
+
+                    Console.WriteLine(JsonSerializer.Serialize(response));
+
+                    await Task.Delay(TimeSpan.FromSeconds(1));
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine(ex);
+                }
+            }
 
         }
 

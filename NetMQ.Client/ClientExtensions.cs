@@ -18,5 +18,12 @@ namespace NetMQ.Client
             var response = await client.SendRequestAsync(method, message, timeout);
             return MessagePackSerializer.Deserialize<TResponse>(response.Buffer);
         }
+
+
+        public static void PostRequest<TRequest>(this IClient client, string method, TRequest request)
+        {
+            var message = MessagePackSerializer.Serialize(request);
+            client.PostRequest(method, message);
+        }
     }
 }

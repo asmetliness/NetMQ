@@ -87,6 +87,22 @@ namespace NetMQ.Client
             
         }
 
+        public void PostRequest(string method, byte[] request)
+        {
+            var metadata = new RequestMetadata()
+            {
+                RequestDtoKey = method,
+                RequestId = Guid.NewGuid().ToString()
+            };
+
+            var message = new NetMQMessage();
+            message.AppendEmptyFrame();
+            message.Append(metadata.ToMessagePack());
+            message.Append(request);
+            
+            _queue.Enqueue(message);
+        }
+
         public void Dispose()
         {
             _poller?.Dispose();
@@ -100,16 +116,16 @@ namespace NetMQ.Client
                 var metadata = message[1].FromMessagePack<ResponseMetadata>();
                 var response = message[2];
                 
-                if (Requests.TryRemove(metadata.RequestId, out var tcs))
+                if (metadata.RequestId != null && Requests.TryRemove(metadata.RequestId, out var tcs))
                 {
-                    tcs.SetResult(response);
+                    tcs.TrySetResult(response);
                 }
-                
             }
         }
 
         private void OnQueueReceiveReady(object sender, NetMQQueueEventArgs<NetMQMessage> eventArgs)
         {
+            
             _dealerSocket.SendMultipartMessage(eventArgs.Queue.Dequeue());
         }
     }

@@ -9,5 +9,7 @@ namespace NetMQ.Client
         void Initialize();
         
         Task<NetMQFrame> SendRequestAsync(string method, byte[] message, TimeSpan timeOut);
+
+        void PostRequest(string method, byte[] message);
     }
 }
