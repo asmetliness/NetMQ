@@ -35,7 +35,7 @@ namespace NetMQ.Server.Configuration
 
         public void ConfigureAssemblies(Assembly[] assemblies)
         {
-            _assemblies = assemblies;
+            _assemblies = _assemblies.Concat(assemblies).Distinct().ToArray();
         }
     }
 }

@@ -27,9 +27,11 @@ namespace Demo.Client
             var client = host.Services.GetService<IClient>();
 
 
-            var response = await client.SendRequestAsync<RequestDto, ResponseDto>("Test", RequestDto.Create());
-            
-            
+            var response =
+                await client.SendRequestAsync<RequestDto, ResponseDto>("Test", RequestDto.Create(),
+                    TimeSpan.FromSeconds(1));
+
+
         }
 
         public static IHostBuilder CreateHostBuilder(string[] args) =>
@@ -44,7 +46,6 @@ namespace Demo.Client
                     {
                         options.ServerIps = new[] {"127.0.0.1:9999"};
                     });
-                })
-                .ConfigureWebHostDefaults(webBuilder => webBuilder.UseStartup<Startup>());
+                });
     }
 }

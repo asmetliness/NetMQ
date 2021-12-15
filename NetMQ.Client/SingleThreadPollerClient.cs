@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Options;
 using NetMQ.Client.Configuration;
@@ -45,27 +46,45 @@ namespace NetMQ.Client
         }
         
 
-        public Task<NetMQFrame> SendRequestAsync(string method, byte[] request)
+        public async Task<NetMQFrame> SendRequestAsync(string method, byte[] request, TimeSpan timeout)
         {
 
-            var metadata = new RequestMetadata()
-            {
-                RequestDtoKey = method,
-                RequestId = Guid.NewGuid().ToString()
-            };
+
+                var metadata = new RequestMetadata()
+                {
+                    RequestDtoKey = method,
+                    RequestId = Guid.NewGuid().ToString()
+                };
+
+                var message = new NetMQMessage();
+                message.AppendEmptyFrame();
+                message.Append(metadata.ToMessagePack());
+                message.Append(request);
+
+                using var cts = new CancellationTokenSource();
+                var tcs = new TaskCompletionSource<NetMQFrame>();
+
+                cts.CancelAfter(timeout);
+
+                using var registration = cts.Token.Register(() => tcs.TrySetCanceled(cts.Token));
+
+                Requests[metadata.RequestId] = tcs;
+
+                _queue.Enqueue(message);
+
+                try
+                {
+                    return await tcs.Task;
+                }
+                catch (OperationCanceledException ex)
+                {
+                    if (cts.IsCancellationRequested)
+                    {
+                        throw new TimeoutException($"Timeout", ex);
+                    }
+                    throw;
+                }
             
-            var message = new NetMQMessage();
-            message.AppendEmptyFrame();
-            message.Append(metadata.ToMessagePack());
-            message.Append(request);
-
-            var tcs = new TaskCompletionSource<NetMQFrame>();
-
-            Requests[metadata.RequestId] = tcs;
-                
-            _queue.Enqueue(message);
-
-            return tcs.Task;
         }
 
         public void Dispose()
@@ -78,7 +97,7 @@ namespace NetMQ.Client
             NetMQMessage message = null;
             while (eventArgs.Socket.TryReceiveMultipartMessage(ref message))
             {
-                var metadata = message[1].FromMessagePack<RequestMetadata>();
+                var metadata = message[1].FromMessagePack<ResponseMetadata>();
                 var response = message[2];
                 
                 if (Requests.TryRemove(metadata.RequestId, out var tcs))

@@ -37,7 +37,6 @@ namespace Server
                         options.Ip = "127.0.0.1:9999";
                         options.WorkersCount = 10;
                     });
-                })
-                .ConfigureWebHostDefaults(webBuilder => webBuilder.UseStartup<Startup>());
+                });
     }
 }

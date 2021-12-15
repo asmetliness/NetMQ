@@ -8,6 +8,6 @@ namespace NetMQ.Client
 
         void Initialize();
         
-        Task<NetMQFrame> SendRequestAsync(string method, byte[] message);
+        Task<NetMQFrame> SendRequestAsync(string method, byte[] message, TimeSpan timeOut);
     }
 }

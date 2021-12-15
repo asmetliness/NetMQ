@@ -2,6 +2,8 @@
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using DevTools.Core.LoggerService;
+using DevTools.Core.LoggerService.NullableLogging;
 using Microsoft.Extensions.Options;
 using NetMQ.Core;
 using NetMQ.Server.Configuration;
@@ -23,14 +25,17 @@ namespace NetMQ.Server.Server
         private readonly NetMQPoller _poller;
         private readonly IOptions<ServerOptions> _options;
 
+        private readonly WrappedLogger _logger;
+
         private readonly List<Task> _workers;
 
         private readonly CancellationTokenSource _cts = new CancellationTokenSource();
 
         private readonly IControllerManager _controllerManager;
 
-        public Server(IOptions<ServerOptions> options,  IControllerManager controllerManager)
+        public Server(IOptions<ServerOptions> options,  IControllerManager controllerManager, ILoggerService loggerService)
         {
+            _logger = loggerService.GetLogger(nameof(IServer)).Wrap();
             _controllerManager = controllerManager;
             _address = Helpers.ConvertIp(options.Value.Ip);
             _options = options;
@@ -60,7 +65,6 @@ namespace NetMQ.Server.Server
                 _workers.Add(Task.Run(Worker));
             }
             
-
             _poller.RunAsync();
             _proxy.Start();
 
@@ -92,26 +96,44 @@ namespace NetMQ.Server.Server
                     {
                         var message = responseSocket.ReceiveMultipartMessage();
 
-                        var metadata = message[0].FromMessagePack<RequestMetadata>();
-                        
-                        if (_controllerManager.TryGetController(metadata.RequestDtoKey, out var controller))
+                        var requestMetadata = message[0].FromMessagePack<RequestMetadata>();
+
+                        try
                         {
-                            var requestFrame = message[1];
+                            if (_controllerManager.TryGetController(requestMetadata.RequestDtoKey, out var controller))
+                            {
+                                var requestFrame = message[1];
 
-                            var response = await controller.HandleRequest(requestFrame)
-                                .ConfigureAwait(false);
+                                var response = await controller.HandleRequest(requestFrame)
+                                        .ConfigureAwait(false);
+     
+                            
+                                var responseMessage = new NetMQMessage();
+                                var responseMetadata = ResponseMetadata.CreateSuccess(requestMetadata);
+                                responseMessage.Append(responseMetadata.ToMessagePack());
+                                responseMessage.Append(response);
 
-                            var responseMessage = new NetMQMessage();
-                            responseMessage.Append(metadata.ToMessagePack());
-                            responseMessage.Append(response);
-
-                            responseSocket.SendMultipartMessage(responseMessage);
+                                responseSocket.SendMultipartMessage(responseMessage);
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.Error?.Log(ex);
+                            
+                            var response = new NetMQMessage();
+                            var responseMetadata = ResponseMetadata.CreateError(requestMetadata, ex);
+                            response.Append(responseMetadata.ToMessagePack());
+                            
+                            responseSocket.SendMultipartMessage(response);
                         }
                     }
                     catch (Exception ex)
                     {
-                        Console.WriteLine(ex);
+                        //we dont know RequestId from request metadata.
+                        //we still can send request to the client, but it wont be able to match request and error-response
+                        _logger.Error?.Log(ex);
                     }
+
                 }   
             }
         }
